@@ -78,6 +78,27 @@ async def list_categories():
     return result
 
 
+@router.get("/quotes", response_model=dict[str, IndexQuote])
+async def get_all_quotes():
+    """Get latest quotes for all tracked indices from DB cache.
+
+    This endpoint reads from our local database — no external API calls.
+    Use /api/v1/indices/{symbol}?refresh=true to force a fresh fetch.
+    """
+    quotes = {}
+    for symbol in INDEX_REGISTRY:
+        try:
+            quote = await market_data_service.get_quote(symbol, force_refresh=False)
+            quotes[symbol] = quote
+        except Exception:
+            quotes[symbol] = IndexQuote(
+                symbol=symbol, price=0.0, change=0.0, change_percent=0.0,
+                volume=None, high=None, low=None, open=None,
+                previous_close=None, timestamp=datetime.now(timezone.utc),
+            )
+    return quotes
+
+
 @router.get("/indices/{symbol}", response_model=IndexQuote)
 async def get_index_quote(symbol: str, refresh: bool = Query(default=False, description="Force fresh fetch")):
     """Get current quote for a specific index."""
