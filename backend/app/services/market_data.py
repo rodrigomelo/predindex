@@ -69,7 +69,30 @@ class MarketDataService:
 
         except Exception as e:
             logger.warning(f"Yahoo Finance error for {symbol}: {e}")
-            # Return a fallback quote with zero values
+            # Fallback: try to get latest data from DB
+            try:
+                from app.models.db import get_session, IndexQuoteModel
+                session = get_session()
+                latest = session.query(IndexQuoteModel).filter(
+                    IndexQuoteModel.symbol == symbol
+                ).order_by(IndexQuoteModel.fetched_at.desc()).first()
+                if latest and latest.price > 0:
+                    logger.info(f"Using cached DB data for {symbol}: {latest.price}")
+                    return IndexQuote(
+                        symbol=symbol,
+                        price=latest.price,
+                        change=latest.change,
+                        change_percent=latest.change_percent,
+                        volume=latest.volume,
+                        high=latest.high,
+                        low=latest.low,
+                        open=latest.open_price,
+                        previous_close=latest.previous_close,
+                        timestamp=latest.fetched_at,
+                    )
+            except Exception as db_err:
+                logger.warning(f"DB fallback also failed for {symbol}: {db_err}")
+
             return IndexQuote(
                 symbol=symbol,
                 price=0.0,
