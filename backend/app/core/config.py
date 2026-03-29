@@ -15,10 +15,10 @@ class Settings(BaseSettings):
 
     # Server
     HOST: str = "0.0.0.0"
-    PORT: int = 5000
+    PORT: int = 5004
 
     # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5000"]
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5004"]
 
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./data/predindex.db")
