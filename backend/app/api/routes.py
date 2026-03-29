@@ -35,6 +35,18 @@ INDEX_REGISTRY: dict[str, IndexInfo] = {
     "EURBRL=X": IndexInfo(
         symbol="EURBRL=X", name="EUR/BRL", currency="BRL", exchange="Forex"
     ),
+    "BTC-USD": IndexInfo(
+        symbol="BTC-USD", name="Bitcoin", currency="USD", exchange="Crypto"
+    ),
+    "ETH-USD": IndexInfo(
+        symbol="ETH-USD", name="Ethereum", currency="USD", exchange="Crypto"
+    ),
+    "SOL-USD": IndexInfo(
+        symbol="SOL-USD", name="Solana", currency="USD", exchange="Crypto"
+    ),
+    "XRP-USD": IndexInfo(
+        symbol="XRP-USD", name="Ripple", currency="USD", exchange="Crypto"
+    ),
 }
 
 
