@@ -93,7 +93,7 @@ async def test_list_indices():
     symbols = [idx["symbol"] for idx in data]
     assert "^BVSP" in symbols
     assert "^GSPC" in symbols
-    assert "^IFIX" in symbols
+    assert "IFIX.SA" in symbols
 
 
 @pytest.mark.anyio
