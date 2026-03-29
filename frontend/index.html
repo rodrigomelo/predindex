@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PredIndex — Financial Index Analysis</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── PredIndex Dark Theme ──────────────────────────── */
+    :root {
+      --bg-primary: #0D1117;
+      --bg-surface: #161B22;
+      --bg-elevated: #1C2128;
+      --border: #30363D;
+      --text-primary: #E6EDF3;
+      --text-secondary: #8B949E;
+      --accent-cyan: #22D3EE;
+      --accent-red: #F87171;
+      --accent-yellow: #FBBF24;
+      --accent-green: #34D399;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+
+    /* ── Header ───────────────────────────────────────── */
+    header {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .logo span { color: var(--accent-cyan); }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .btn:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+    .btn-primary { background: var(--accent-cyan); color: var(--bg-primary); border-color: var(--accent-cyan); font-weight: 600; }
+    .btn-primary:hover { opacity: 0.9; }
+
+    /* ── Navigation ───────────────────────────────────── */
+    nav {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      gap: 0;
+    }
+
+    .nav-tab {
+      padding: 12px 20px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .nav-tab:hover { color: var(--text-primary); }
+    .nav-tab.active { color: var(--accent-cyan); border-bottom-color: var(--accent-cyan); }
+
+    /* ── Main Content ─────────────────────────────────── */
+    main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── Overview Grid ────────────────────────────────── */
+    .index-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .index-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .index-card:hover { border-color: var(--accent-cyan); transform: translateY(-2px); }
+
+    .index-card .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .index-card .card-name {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .index-card .card-symbol {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .index-card .card-exchange {
+      font-size: 11px;
+      color: var(--text-secondary);
+      background: var(--bg-elevated);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .index-card .card-price {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .index-card .card-change {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .positive { color: var(--accent-green); }
+    .negative { color: var(--accent-red); }
+    .neutral { color: var(--text-secondary); }
+
+    .card-sparkline {
+      width: 100%;
+      height: 40px;
+      margin-top: 8px;
+    }
+
+    .card-details {
+      display: flex;
+      gap: 16px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .card-details span { display: flex; flex-direction: column; }
+    .card-details .label { font-size: 10px; text-transform: uppercase; margin-bottom: 2px; }
+    .card-details .value { color: var(--text-primary); }
+
+    /* ── Signal Badge ─────────────────────────────────── */
+    .signal-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .signal-buy { background: rgba(52, 211, 153, 0.15); color: var(--accent-green); }
+    .signal-sell { background: rgba(248, 113, 113, 0.15); color: var(--accent-red); }
+    .signal-hold { background: rgba(251, 191, 36, 0.15); color: var(--accent-yellow); }
+
+    /* ── Detail View ──────────────────────────────────── */
+    .detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .detail-title { font-size: 24px; font-weight: 700; }
+    .detail-subtitle { color: var(--text-secondary); font-size: 14px; margin-top: 4px; }
+
+    .timeframe-selector {
+      display: flex;
+      gap: 4px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px;
+    }
+
+    .tf-btn {
+      padding: 6px 14px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .tf-btn:hover { color: var(--text-primary); }
+    .tf-btn.active { background: var(--accent-cyan); color: var(--bg-primary); font-weight: 600; }
+
+    .chart-container {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+      height: 400px;
+    }
+
+    /* ── Indicators Panel ─────────────────────────────── */
+    .indicators-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .indicator-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .indicator-card .ind-name {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .indicator-card .ind-value {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .indicator-card .ind-desc {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* ── Analysis Panel ───────────────────────────────── */
+    .analysis-panel {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+    }
+
+    .analysis-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .confidence-bar {
+      width: 100%;
+      height: 8px;
+      background: var(--bg-elevated);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .confidence-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s;
+    }
+
+    .analysis-notes {
+      margin-top: 16px;
+      padding: 12px;
+      background: var(--bg-elevated);
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* ── Pipeline View ────────────────────────────────── */
+    .pipeline-status {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .status-row:last-child { border-bottom: none; }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 8px;
+    }
+
+    .status-dot.active { background: var(--accent-green); }
+    .status-dot.inactive { background: var(--accent-red); }
+
+    /* ── Loading ──────────────────────────────────────── */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-secondary);
+    }
+
+    .loading-spinner {
+      border: 3px solid var(--border);
+      border-top-color: var(--accent-cyan);
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ───────────────────────────────────── */
+    @media (max-width: 768px) {
+      .index-grid { grid-template-columns: 1fr; }
+      .indicators-grid { grid-template-columns: repeat(2, 1fr); }
+      .detail-header { flex-direction: column; gap: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="logo">🔨 <span>Pred</span>Index</div>
+    <div class="header-actions">
+      <span id="last-update" style="font-size: 12px; color: var(--text-secondary);">—</span>
+      <button class="btn" onclick="refreshAll()">↻ Refresh</button>
+    </div>
+  </header>
+
+  <!-- Navigation -->
+  <nav>
+    <div class="nav-tab active" data-view="overview" onclick="switchView('overview')">Overview</div>
+    <div class="nav-tab" data-view="detail" onclick="switchView('detail')">Index Detail</div>
+    <div class="nav-tab" data-view="pipeline" onclick="switchView('pipeline')">Pipeline</div>
+  </nav>
+
+  <!-- Main -->
+  <main>
+    <!-- Overview -->
+    <div id="view-overview" class="view active">
+      <div id="index-grid" class="index-grid">
+        <div class="loading"><div class="loading-spinner"></div>Loading indices...</div>
+      </div>
+    </div>
+
+    <!-- Detail -->
+    <div id="view-detail" class="view">
+      <div class="detail-header">
+        <div>
+          <div class="detail-title" id="detail-title">—</div>
+          <div class="detail-subtitle" id="detail-subtitle">Select an index from Overview</div>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <div class="timeframe-selector">
+            <button class="tf-btn" data-period="5d" onclick="changeTimeframe('5d')">5D</button>
+            <button class="tf-btn active" data-period="1mo" onclick="changeTimeframe('1mo')">1M</button>
+            <button class="tf-btn" data-period="3mo" onclick="changeTimeframe('3mo')">3M</button>
+            <button class="tf-btn" data-period="6mo" onclick="changeTimeframe('6mo')">6M</button>
+            <button class="tf-btn" data-period="1y" onclick="changeTimeframe('1y')">1Y</button>
+          </div>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="price-chart"></canvas>
+      </div>
+      <div id="indicators-grid" class="indicators-grid"></div>
+      <div id="analysis-panel" class="analysis-panel"></div>
+    </div>
+
+    <!-- Pipeline -->
+    <div id="view-pipeline" class="view">
+      <div class="pipeline-status">
+        <h3 style="margin-bottom: 16px;">Pipeline Status</h3>
+        <div id="pipeline-info">
+          <div class="loading"><div class="loading-spinner"></div>Loading pipeline...</div>
+        </div>
+        <div style="margin-top: 24px;">
+          <button class="btn-primary btn" onclick="triggerPipeline()">⚡ Trigger Manual Fetch</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // ── Config ──────────────────────────────────────────
+    const API_BASE = window.location.origin;
+    let currentSymbol = null;
+    let currentPeriod = '1mo';
+    let priceChart = null;
+
+    const INDEX_NAMES = {
+      '^BVSP': { name: 'Ibovespa', exchange: 'B3', currency: 'BRL' },
+      '^GSPC': { name: 'S&P 500', exchange: 'NYSE', currency: 'USD' },
+      '^IFIX': { name: 'IFIX', exchange: 'B3', currency: 'BRL' },
+      'USDBRL=X': { name: 'USD/BRL', exchange: 'Forex', currency: 'BRL' },
+      'EURBRL=X': { name: 'EUR/BRL', exchange: 'Forex', currency: 'BRL' },
+    };
+
+    // ── Helpers ─────────────────────────────────────────
+    function formatPrice(val, currency) {
+      if (val === null || val === undefined) return '—';
+      if (currency === 'BRL') return 'R$ ' + val.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+      return '$ ' + val.toLocaleString('en-US', { minimumFractionDigits: 2 });
+    }
+
+    function formatChange(val, pct) {
+      if (val === null || val === undefined) return { text: '—', cls: 'neutral' };
+      const sign = val >= 0 ? '+' : '';
+      const cls = val > 0 ? 'positive' : val < 0 ? 'negative' : 'neutral';
+      return { text: `${sign}${val.toFixed(2)} (${sign}${pct.toFixed(2)}%)`, cls };
+    }
+
+    function signalBadge(recommendation) {
+      const map = {
+        buy: { cls: 'signal-buy', icon: '🟢', label: 'BUY' },
+        sell: { cls: 'signal-sell', icon: '🔴', label: 'SELL' },
+        hold: { cls: 'signal-hold', icon: '🟡', label: 'NEUTRAL' },
+      };
+      const s = map[recommendation] || map.hold;
+      return `<span class="signal-badge ${s.cls}">${s.icon} ${s.label}</span>`;
+    }
+
+    // ── API Calls ───────────────────────────────────────
+    async function fetchJSON(url) {
+      const res = await fetch(API_BASE + url);
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      return res.json();
+    }
+
+    // ── View Switching ──────────────────────────────────
+    function switchView(view) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById(`view-${view}`).classList.add('active');
+      document.querySelector(`.nav-tab[data-view="${view}"]`).classList.add('active');
+    }
+
+    // ── Overview ────────────────────────────────────────
+    async function loadOverview() {
+      const grid = document.getElementById('index-grid');
+      try {
+        const indices = await fetchJSON('/api/v1/indices');
+        let html = '';
+
+        for (const idx of indices) {
+          let quoteHtml = '';
+          try {
+            const quote = await fetchJSON(`/api/v1/indices/${encodeURIComponent(idx.symbol)}`);
+            const info = INDEX_NAMES[idx.symbol] || { currency: 'USD' };
+            const ch = formatChange(quote.change, quote.change_percent);
+            quoteHtml = `
+              <div class="card-price mono">${formatPrice(quote.price, info.currency)}</div>
+              <div class="card-change mono ${ch.cls}">${ch.text}</div>
+              <div class="card-details">
+                <span><span class="label">High</span><span class="value mono">${quote.high ? quote.high.toLocaleString() : '—'}</span></span>
+                <span><span class="label">Low</span><span class="value mono">${quote.low ? quote.low.toLocaleString() : '—'}</span></span>
+                <span><span class="label">Vol</span><span class="value mono">${quote.volume ? (quote.volume / 1e6).toFixed(1) + 'M' : '—'}</span></span>
+              </div>
+            `;
+          } catch {
+            quoteHtml = `<div class="card-price mono">—</div><div class="card-change neutral">Unavailable</div>`;
+          }
+
+          html += `
+            <div class="index-card" onclick="openDetail('${idx.symbol}')">
+              <div class="card-header">
+                <div>
+                  <div class="card-symbol">${idx.name}</div>
+                  <div class="card-name mono">${idx.symbol}</div>
+                </div>
+                <span class="card-exchange">${idx.exchange}</span>
+              </div>
+              ${quoteHtml}
+              <canvas class="card-sparkline" id="spark-${idx.symbol.replace(/[^a-zA-Z0-9]/g, '_')}" width="240" height="40"></canvas>
+            </div>
+          `;
+        }
+
+        grid.innerHTML = html;
+        document.getElementById('last-update').textContent = 'Updated: ' + new Date().toLocaleTimeString('pt-BR');
+
+        // Render sparklines for each index card
+        for (const idx of indices) {
+          renderSparkline(idx.symbol);
+        }
+      } catch (e) {
+        grid.innerHTML = `<div class="loading" style="color: var(--accent-red);">Error loading indices: ${e.message}</div>`;
+      }
+    }
+
+    // ── Detail View ─────────────────────────────────────
+    const sparklineCharts = {};
+
+    async function renderSparkline(symbol) {
+      const canvasId = 'spark-' + symbol.replace(/[^a-zA-Z0-9]/g, '_');
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+
+      try {
+        const data = await fetchJSON(`/api/v1/indices/${encodeURIComponent(symbol)}/history?period=5d&interval=1d`);
+        const points = (data.data || []).map(p => p.close);
+        if (points.length < 2) return;
+
+        const isUp = points[points.length - 1] >= points[0];
+        const color = isUp ? '#34D399' : '#F87171';
+
+        sparklineCharts[canvasId] = new Chart(canvas, {
+          type: 'line',
+          data: {
+            labels: points.map((_, i) => i),
+            datasets: [{
+              data: points,
+              borderColor: color,
+              backgroundColor: color + '20',
+              fill: true,
+              tension: 0.4,
+              pointRadius: 0,
+              borderWidth: 1.5,
+            }]
+          },
+          options: {
+            responsive: false,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+              x: { display: false },
+              y: { display: false },
+            },
+          }
+        });
+      } catch {
+        // Sparkline not critical — silently skip
+      }
+    }
+    async function openDetail(symbol) {
+      currentSymbol = symbol;
+      currentPeriod = '1mo';
+      switchView('detail');
+
+      const info = INDEX_NAMES[symbol] || { name: symbol, exchange: '—', currency: 'USD' };
+      document.getElementById('detail-title').textContent = info.name;
+      document.getElementById('detail-subtitle').textContent = `${symbol} · ${info.exchange}`;
+
+      // Reset timeframe buttons
+      document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector('.tf-btn[data-period="1mo"]').classList.add('active');
+
+      await loadChart();
+      await loadIndicators();
+    }
+
+    async function changeTimeframe(period) {
+      currentPeriod = period;
+      document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector(`.tf-btn[data-period="${period}"]`).classList.add('active');
+      await loadChart();
+    }
+
+    async function loadChart() {
+      if (!currentSymbol) return;
+      try {
+        const data = await fetchJSON(`/api/v1/indices/${encodeURIComponent(currentSymbol)}/history?period=${currentPeriod}&interval=1d`);
+        renderChart(data.data || []);
+      } catch {
+        renderChart([]);
+      }
+    }
+
+    function renderChart(dataPoints) {
+      const ctx = document.getElementById('price-chart').getContext('2d');
+      if (priceChart) priceChart.destroy();
+
+      if (!dataPoints.length) {
+        priceChart = new Chart(ctx, {
+          type: 'line',
+          data: { labels: ['No data'], datasets: [{ data: [0], borderColor: '#30363D' }] },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+        return;
+      }
+
+      const labels = dataPoints.map(p => new Date(p.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }));
+      const closes = dataPoints.map(p => p.close);
+
+      priceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Close',
+            data: closes,
+            borderColor: '#22D3EE',
+            backgroundColor: 'rgba(34, 211, 238, 0.1)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 0,
+            pointHitRadius: 10,
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#161B22',
+              borderColor: '#30363D',
+              borderWidth: 1,
+              titleColor: '#E6EDF3',
+              bodyColor: '#8B949E',
+              padding: 12,
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: '#1C2128' },
+              ticks: { color: '#8B949E', maxTicksLimit: 10 }
+            },
+            y: {
+              grid: { color: '#1C2128' },
+              ticks: { color: '#8B949E' }
+            }
+          }
+        }
+      });
+    }
+
+    async function loadIndicators() {
+      if (!currentSymbol) return;
+      const indGrid = document.getElementById('indicators-grid');
+      const analysisPanel = document.getElementById('analysis-panel');
+
+      try {
+        const analysis = await fetchJSON(`/api/v1/analysis/${encodeURIComponent(currentSymbol)}?period=${currentPeriod}`);
+
+        // Indicators
+        const indicators = analysis.indicators || {};
+        let indHtml = '';
+        const indMap = {
+          'rsi_14': { name: 'RSI (14)', desc: 'Relative Strength Index' },
+          'macd': { name: 'MACD', desc: 'Moving Avg Convergence' },
+          'macd_signal': { name: 'MACD Signal', desc: 'Signal Line' },
+          'macd_hist': { name: 'MACD Histogram', desc: 'Momentum' },
+          'sma_20': { name: 'SMA 20', desc: 'Simple Moving Avg' },
+          'sma_50': { name: 'SMA 50', desc: 'Simple Moving Avg' },
+          'ema_12': { name: 'EMA 12', desc: 'Exponential Moving Avg' },
+          'ema_26': { name: 'EMA 26', desc: 'Exponential Moving Avg' },
+          'bb_upper': { name: 'BB Upper', desc: 'Bollinger Band' },
+          'bb_lower': { name: 'BB Lower', desc: 'Bollinger Band' },
+          'bb_percent': { name: '%B', desc: 'Band Position' },
+        };
+
+        for (const [key, meta] of Object.entries(indMap)) {
+          if (indicators[key] !== undefined) {
+            const val = indicators[key];
+            let cls = '';
+            if (key === 'rsi_14') cls = val < 30 ? 'positive' : val > 70 ? 'negative' : 'neutral';
+            indHtml += `
+              <div class="indicator-card">
+                <div class="ind-name">${meta.name}</div>
+                <div class="ind-value mono ${cls}">${val.toFixed(2)}</div>
+                <div class="ind-desc">${meta.desc}</div>
+              </div>
+            `;
+          }
+        }
+        indGrid.innerHTML = indHtml || '<p style="color: var(--text-secondary);">No indicators available</p>';
+
+        // Analysis
+        const confidenceColor = analysis.confidence > 0.6 ? 'var(--accent-green)' :
+          analysis.confidence > 0.3 ? 'var(--accent-yellow)' : 'var(--accent-red)';
+
+        analysisPanel.innerHTML = `
+          <div class="analysis-header">
+            <h3>Analysis</h3>
+            ${signalBadge(analysis.recommendation)}
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 14px; color: var(--text-secondary);">Confidence</span>
+            <span class="mono" style="font-size: 18px; font-weight: 700;">${(analysis.confidence * 100).toFixed(0)}%</span>
+          </div>
+          <div class="confidence-bar">
+            <div class="confidence-fill" style="width: ${analysis.confidence * 100}%; background: ${confidenceColor};"></div>
+          </div>
+          ${analysis.notes ? `<div class="analysis-notes">📊 ${analysis.notes}</div>` : ''}
+          <div style="margin-top: 12px; font-size: 12px; color: var(--text-secondary);">
+            Trend: <strong style="color: var(--text-primary);">${analysis.trend.toUpperCase()}</strong> ·
+            Updated: ${new Date(analysis.timestamp).toLocaleTimeString('pt-BR')}
+          </div>
+        `;
+      } catch (e) {
+        indGrid.innerHTML = '<p style="color: var(--accent-red);">Error loading indicators</p>';
+        analysisPanel.innerHTML = '<p style="color: var(--accent-red);">Error loading analysis</p>';
+      }
+    }
+
+    // ── Pipeline ────────────────────────────────────────
+    async function loadPipeline() {
+      const info = document.getElementById('pipeline-info');
+      try {
+        const health = await fetchJSON('/health');
+        info.innerHTML = `
+          <div class="status-row">
+            <span><span class="status-dot active"></span>Backend API</span>
+            <span class="mono" style="color: var(--accent-green);">Online</span>
+          </div>
+          <div class="status-row">
+            <span>Version</span>
+            <span class="mono">${health.version}</span>
+          </div>
+          <div class="status-row">
+            <span>Uptime</span>
+            <span class="mono">${Math.floor(health.uptime_seconds)}s</span>
+          </div>
+          <div class="status-row">
+            <span>Scheduler</span>
+            <span class="mono" style="color: var(--accent-yellow);">Pending implementation</span>
+          </div>
+        `;
+      } catch {
+        info.innerHTML = '<p style="color: var(--accent-red);">Backend unreachable</p>';
+      }
+    }
+
+    async function triggerPipeline() {
+      try {
+        const res = await fetch(API_BASE + '/api/v1/pipeline/trigger', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || data.status || 'Pipeline triggered!');
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    // ── Refresh ─────────────────────────────────────────
+    async function refreshAll() {
+      await loadOverview();
+      if (currentSymbol) {
+        await loadChart();
+        await loadIndicators();
+      }
+    }
+
+    // ── Init ────────────────────────────────────────────
+    loadOverview();
+  </script>
+</body>
+</html>

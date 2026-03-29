@@ -1,0 +1,7 @@
+# PredIndex
+
+## Rules
+- All code and comments in English
+- Python: follow PEP 8, use ruff for linting
+- Node.js: use consistent formatting
+- Commit messages: conventional commits (feat/fix/docs/refactor)

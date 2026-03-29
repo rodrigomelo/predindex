@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: predindex-backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - ./backend/.env.example
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  realtime:
+    build:
+      context: ./realtime
+      dockerfile: Dockerfile
+    container_name: predindex-realtime
+    ports:
+      - "5001:5001"
+    environment:
+      - REALTIME_PORT=5001
+      - BACKEND_URL=http://backend:5000
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
