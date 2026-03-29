@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api/v1", tags=["indices"])
 # ── Index Registry ──────────────────────────────────────────────
 
 INDEX_REGISTRY: dict[str, IndexInfo] = {
+    # ── Indices ────────────────────────────────────────
     "^BVSP": IndexInfo(
         symbol="^BVSP", name="Ibovespa", currency="BRL", exchange="B3"
     ),
@@ -29,12 +30,14 @@ INDEX_REGISTRY: dict[str, IndexInfo] = {
     "IFIX.SA": IndexInfo(
         symbol="IFIX.SA", name="IFIX", currency="BRL", exchange="B3"
     ),
+    # ── Currencies ─────────────────────────────────────
     "USDBRL=X": IndexInfo(
         symbol="USDBRL=X", name="USD/BRL", currency="BRL", exchange="Forex"
     ),
     "EURBRL=X": IndexInfo(
         symbol="EURBRL=X", name="EUR/BRL", currency="BRL", exchange="Forex"
     ),
+    # ── Cryptocurrencies ───────────────────────────────
     "BTC-USD": IndexInfo(
         symbol="BTC-USD", name="Bitcoin", currency="USD", exchange="Crypto"
     ),
@@ -49,6 +52,13 @@ INDEX_REGISTRY: dict[str, IndexInfo] = {
     ),
 }
 
+# Category mapping for frontend grouping
+INDEX_CATEGORIES: dict[str, list[str]] = {
+    "indices": ["^BVSP", "^GSPC", "IFIX.SA"],
+    "currencies": ["USDBRL=X", "EURBRL=X"],
+    "cryptocurrencies": ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD"],
+}
+
 
 # ── Endpoints ───────────────────────────────────────────────────
 
@@ -57,6 +67,15 @@ INDEX_REGISTRY: dict[str, IndexInfo] = {
 async def list_indices():
     """List all available indices."""
     return list(INDEX_REGISTRY.values())
+
+
+@router.get("/indices/categories")
+async def list_categories():
+    """List indices grouped by category."""
+    result = {}
+    for category, symbols in INDEX_CATEGORIES.items():
+        result[category] = [INDEX_REGISTRY[s].model_dump() for s in symbols if s in INDEX_REGISTRY]
+    return result
 
 
 @router.get("/indices/{symbol}", response_model=IndexQuote)

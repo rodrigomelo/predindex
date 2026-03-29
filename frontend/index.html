@@ -433,14 +433,21 @@
     let priceChart = null;
 
     const INDEX_NAMES = {
-      '^BVSP': { name: 'Ibovespa', exchange: 'B3', currency: 'BRL' },
-      '^GSPC': { name: 'S&P 500', exchange: 'NYSE', currency: 'USD' },
-      'IFIX.SA': { name: 'IFIX', exchange: 'B3', currency: 'BRL' },
-      'USDBRL=X': { name: 'USD/BRL', exchange: 'Forex', currency: 'BRL' },
-      'BTC-USD': { name: 'Bitcoin', exchange: 'Crypto', currency: 'USD' },
-      'ETH-USD': { name: 'Ethereum', exchange: 'Crypto', currency: 'USD' },
-      'SOL-USD': { name: 'Solana', exchange: 'Crypto', currency: 'USD' },
-      'XRP-USD': { name: 'Ripple', exchange: 'Crypto', currency: 'USD' },
+      '^BVSP': { name: 'Ibovespa', exchange: 'B3', currency: 'BRL', category: 'indices' },
+      '^GSPC': { name: 'S&P 500', exchange: 'NYSE', currency: 'USD', category: 'indices' },
+      'IFIX.SA': { name: 'IFIX', exchange: 'B3', currency: 'BRL', category: 'indices' },
+      'USDBRL=X': { name: 'USD/BRL', exchange: 'Forex', currency: 'BRL', category: 'currencies' },
+      'EURBRL=X': { name: 'EUR/BRL', exchange: 'Forex', currency: 'BRL', category: 'currencies' },
+      'BTC-USD': { name: 'Bitcoin', exchange: 'Crypto', currency: 'USD', category: 'cryptocurrencies' },
+      'ETH-USD': { name: 'Ethereum', exchange: 'Crypto', currency: 'USD', category: 'cryptocurrencies' },
+      'SOL-USD': { name: 'Solana', exchange: 'Crypto', currency: 'USD', category: 'cryptocurrencies' },
+      'XRP-USD': { name: 'Ripple', exchange: 'Crypto', currency: 'USD', category: 'cryptocurrencies' },
+    };
+
+    const CATEGORY_LABELS = {
+      'indices': { label: '📊 Indices', color: '#22D3EE' },
+      'currencies': { label: '💱 Currencies', color: '#34D399' },
+      'cryptocurrencies': { label: '₿ Cryptocurrencies', color: '#FBBF24' },
     };
 
     // ── Helpers ─────────────────────────────────────────
@@ -488,40 +495,63 @@
       const grid = document.getElementById('index-grid');
       try {
         const indices = await fetchJSON('/api/v1/indices');
+        
+        // Group by category
+        const grouped = {};
+        for (const idx of indices) {
+          const info = INDEX_NAMES[idx.symbol];
+          const cat = info?.category || idx.exchange.toLowerCase();
+          if (!grouped[cat]) grouped[cat] = [];
+          grouped[cat].push(idx);
+        }
+
         let html = '';
 
-        for (const idx of indices) {
-          let quoteHtml = '';
-          try {
-            const quote = await fetchJSON(`/api/v1/indices/${encodeURIComponent(idx.symbol)}`);
-            const info = INDEX_NAMES[idx.symbol] || { currency: 'USD' };
-            const ch = formatChange(quote.change, quote.change_percent);
-            quoteHtml = `
-              <div class="card-price mono">${formatPrice(quote.price, info.currency)}</div>
-              <div class="card-change mono ${ch.cls}">${ch.text}</div>
-              <div class="card-details">
-                <span><span class="label">High</span><span class="value mono">${quote.high ? quote.high.toLocaleString() : '—'}</span></span>
-                <span><span class="label">Low</span><span class="value mono">${quote.low ? quote.low.toLocaleString() : '—'}</span></span>
-                <span><span class="label">Vol</span><span class="value mono">${quote.volume ? (quote.volume / 1e6).toFixed(1) + 'M' : '—'}</span></span>
-              </div>
-            `;
-          } catch {
-            quoteHtml = `<div class="card-price mono">—</div><div class="card-change neutral">Unavailable</div>`;
-          }
-
+        for (const [category, items] of Object.entries(grouped)) {
+          const catMeta = CATEGORY_LABELS[category] || { label: category, color: '#8B949E' };
           html += `
-            <div class="index-card" onclick="openDetail('${idx.symbol}')">
-              <div class="card-header">
-                <div>
-                  <div class="card-symbol">${idx.name}</div>
-                  <div class="card-name mono">${idx.symbol}</div>
-                </div>
-                <span class="card-exchange">${idx.exchange}</span>
-              </div>
-              ${quoteHtml}
-              <canvas class="card-sparkline" id="spark-${idx.symbol.replace(/[^a-zA-Z0-9]/g, '_')}" width="240" height="40"></canvas>
+            <div style="grid-column: 1 / -1; margin-top: 16px; margin-bottom: 4px;">
+              <h3 style="font-size: 16px; color: ${catMeta.color}; display: flex; align-items: center; gap: 8px;">
+                ${catMeta.label}
+                <span style="font-size: 11px; color: var(--text-secondary); font-weight: 400;">(${items.length})</span>
+              </h3>
+              <div style="height: 1px; background: var(--border); margin-top: 8px;"></div>
             </div>
           `;
+
+          for (const idx of items) {
+            let quoteHtml = '';
+            try {
+              const quote = await fetchJSON(`/api/v1/indices/${encodeURIComponent(idx.symbol)}`);
+              const info = INDEX_NAMES[idx.symbol] || { currency: 'USD' };
+              const ch = formatChange(quote.change, quote.change_percent);
+              quoteHtml = `
+                <div class="card-price mono">${formatPrice(quote.price, info.currency)}</div>
+                <div class="card-change mono ${ch.cls}">${ch.text}</div>
+                <div class="card-details">
+                  <span><span class="label">High</span><span class="value mono">${quote.high ? quote.high.toLocaleString() : '—'}</span></span>
+                  <span><span class="label">Low</span><span class="value mono">${quote.low ? quote.low.toLocaleString() : '—'}</span></span>
+                  <span><span class="label">Vol</span><span class="value mono">${quote.volume ? (quote.volume / 1e6).toFixed(1) + 'M' : '—'}</span></span>
+                </div>
+              `;
+            } catch {
+              quoteHtml = `<div class="card-price mono">—</div><div class="card-change neutral">Unavailable</div>`;
+            }
+
+            html += `
+              <div class="index-card" onclick="openDetail('${idx.symbol}')">
+                <div class="card-header">
+                  <div>
+                    <div class="card-symbol">${idx.name}</div>
+                    <div class="card-name mono">${idx.symbol}</div>
+                  </div>
+                  <span class="card-exchange">${idx.exchange}</span>
+                </div>
+                ${quoteHtml}
+                <canvas class="card-sparkline" id="spark-${idx.symbol.replace(/[^a-zA-Z0-9]/g, '_')}" width="240" height="40"></canvas>
+              </div>
+            `;
+          }
         }
 
         grid.innerHTML = html;
