@@ -39,7 +39,7 @@ def get_session():
     return _SessionLocal()
 
 
-Base = declarative_base()
+Base = declarative_base()  # noqa: deprecated alias, will migrate to mapped_column later
 
 
 # ── Models ──────────────────────────────────────────────────────

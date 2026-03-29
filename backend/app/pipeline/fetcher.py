@@ -25,9 +25,13 @@ logger = logging.getLogger(__name__)
 TICKER_MAP: dict[str, str] = {
     "^BVSP": "Ibovespa",
     "^GSPC": "S&P 500",
-    "^IFIX": "IFIX",
+    "IFIX.SA": "IFIX",
     "USDBRL=X": "USD/BRL",
     "EURBRL=X": "EUR/BRL",
+    "BTC-USD": "Bitcoin",
+    "ETH-USD": "Ethereum",
+    "SOL-USD": "Solana",
+    "XRP-USD": "Ripple",
 }
 
 
