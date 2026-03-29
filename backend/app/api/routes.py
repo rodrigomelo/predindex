@@ -139,3 +139,25 @@ async def trigger_pipeline():
         return {"status": "ok", "message": "Pipeline triggered"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+
+@router.get("/pipeline/status")
+async def pipeline_status():
+    """Get current pipeline status."""
+    from app.core.config import settings
+
+    try:
+        from app.pipeline.scheduler import get_pipeline_scheduler
+        scheduler = get_pipeline_scheduler()
+        running = scheduler.is_running() if hasattr(scheduler, "is_running") else True
+        last_run = getattr(scheduler, "_last_run", None)
+    except Exception:
+        running = False
+        last_run = None
+
+    return {
+        "status": "running" if running else "stopped",
+        "scheduler_enabled": settings.YAHOO_FINANCE_ENABLED,
+        "indices": settings.DEFAULT_INDICES,
+        "last_run": last_run,
+    }

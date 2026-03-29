@@ -477,6 +477,7 @@
       document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
       document.getElementById(`view-${view}`).classList.add('active');
       document.querySelector(`.nav-tab[data-view="${view}"]`).classList.add('active');
+      if (view === 'pipeline') loadPipeline();
     }
 
     // ── Overview ────────────────────────────────────────
@@ -744,7 +745,19 @@
     async function loadPipeline() {
       const info = document.getElementById('pipeline-info');
       try {
-        const health = await fetchJSON('/health');
+        const [health, pipeline] = await Promise.all([
+          fetchJSON('/health'),
+          fetchJSON('/api/v1/pipeline/status').catch(() => null),
+        ]);
+
+        const schedulerStatus = pipeline?.status === 'running'
+          ? '<span class="mono" style="color: var(--accent-green);">Running</span>'
+          : '<span class="mono" style="color: var(--accent-yellow);">Stopped</span>';
+
+        const indicesList = pipeline?.indices
+          ? pipeline.indices.map(s => `<code style="color: var(--accent-cyan);">${s}</code>`).join(' · ')
+          : '—';
+
         info.innerHTML = `
           <div class="status-row">
             <span><span class="status-dot active"></span>Backend API</span>
@@ -756,11 +769,19 @@
           </div>
           <div class="status-row">
             <span>Uptime</span>
-            <span class="mono">${Math.floor(health.uptime_seconds)}s</span>
+            <span class="mono">${Math.floor(health.uptime_seconds / 60)}m ${Math.floor(health.uptime_seconds % 60)}s</span>
           </div>
           <div class="status-row">
             <span>Scheduler</span>
-            <span class="mono" style="color: var(--accent-yellow);">Pending implementation</span>
+            ${schedulerStatus}
+          </div>
+          <div class="status-row">
+            <span>Indices</span>
+            <span>${indicesList}</span>
+          </div>
+          <div class="status-row">
+            <span>yfinance</span>
+            <span class="mono" style="color: ${pipeline?.scheduler_enabled ? 'var(--accent-green)' : 'var(--accent-red)'};">${pipeline?.scheduler_enabled ? 'Enabled' : 'Disabled'}</span>
           </div>
         `;
       } catch {
