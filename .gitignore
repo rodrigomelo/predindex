@@ -9,3 +9,12 @@ node_modules/
 .pytest_cache/
 dist/
 build/
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+.ruff_cache/
+.pytest_cache/
+*.db
+data/
