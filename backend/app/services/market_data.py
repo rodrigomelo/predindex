@@ -56,13 +56,29 @@ def _read_quote_from_db(symbol: str) -> Optional[IndexQuote]:
 
 
 def _read_history_from_db(symbol: str, period: str, interval: str) -> IndexHistory:
-    """Read historical data from SQLite database."""
+    """Read historical data from SQLite database, filtered by period."""
     try:
+        from datetime import timedelta
         from app.models.db import get_session, IndexHistoryModel
         session = get_session()
-        points = session.query(IndexHistoryModel).filter(
+
+        # Map period string to days
+        period_days = {
+            '5d': 5, '1mo': 30, '3mo': 90, '6mo': 180, '1y': 365, 'max': 9999,
+        }
+        days = period_days.get(period, 30)
+        from datetime import timedelta as td
+        cutoff = datetime.utcnow() - td(days=days)
+
+        query = session.query(IndexHistoryModel).filter(
             IndexHistoryModel.symbol == symbol
-        ).order_by(IndexHistoryModel.date.asc()).limit(200).all()
+        )
+
+        # Filter by date cutoff
+        if days < 9999:
+            query = query.filter(IndexHistoryModel.date >= cutoff)
+
+        points = query.order_by(IndexHistoryModel.date.asc()).limit(500).all()
 
         if points:
             data = [
