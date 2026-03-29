@@ -383,7 +383,7 @@
     <!-- Overview -->
     <div id="view-overview" class="view active">
       <div id="index-grid" class="index-grid">
-        <div class="loading"><div class="loading-spinner"></div>Loading indices...</div>
+        <div class="loading"><div class="loading-spinner"></div>Loading markets...</div>
       </div>
     </div>
 
@@ -416,7 +416,7 @@
       <div class="pipeline-status">
         <h3 style="margin-bottom: 16px;">Pipeline Status</h3>
         <div id="pipeline-info">
-          <div class="loading"><div class="loading-spinner"></div>Loading pipeline...</div>
+          <div class="loading"><div class="loading-spinner"></div>Loading pipeline status...</div>
         </div>
         <div style="margin-top: 24px;">
           <button class="btn-primary btn" onclick="triggerPipeline()">⚡ Trigger Manual Fetch</button>
@@ -433,9 +433,9 @@
     let priceChart = null;
 
     const INDEX_NAMES = {
-      '^BVSP': { name: 'Ibovespa', exchange: 'B3', currency: 'BRL', category: 'indices' },
-      '^GSPC': { name: 'S&P 500', exchange: 'NYSE', currency: 'USD', category: 'indices' },
-      'IFIX.SA': { name: 'IFIX', exchange: 'B3', currency: 'BRL', category: 'indices' },
+      '^BVSP': { name: 'Ibovespa', exchange: 'B3', currency: 'BRL', category: 'markets' },
+      '^GSPC': { name: 'S&P 500', exchange: 'NYSE', currency: 'USD', category: 'markets' },
+      'IFIX.SA': { name: 'IFIX', exchange: 'B3', currency: 'BRL', category: 'markets' },
       'USDBRL=X': { name: 'USD/BRL', exchange: 'Forex', currency: 'BRL', category: 'currencies' },
       'EURBRL=X': { name: 'EUR/BRL', exchange: 'Forex', currency: 'BRL', category: 'currencies' },
       'BTC-USD': { name: 'Bitcoin', exchange: 'Crypto', currency: 'USD', category: 'cryptocurrencies' },
@@ -445,7 +445,7 @@
     };
 
     const CATEGORY_LABELS = {
-      'indices': { label: '📊 Indices', color: '#22D3EE' },
+      'markets': { label: '📊 Markets', color: '#22D3EE' },
       'currencies': { label: '💱 Currencies', color: '#34D399' },
       'cryptocurrencies': { label: '₿ Cryptocurrencies', color: '#FBBF24' },
     };
@@ -562,7 +562,7 @@
           renderSparkline(idx.symbol);
         }
       } catch (e) {
-        grid.innerHTML = `<div class="loading" style="color: var(--accent-red);">Error loading indices: ${e.message}</div>`;
+        grid.innerHTML = `<div class="loading" style="color: var(--accent-red);">Error loading markets: ${e.message}</div>`;
       }
     }
 

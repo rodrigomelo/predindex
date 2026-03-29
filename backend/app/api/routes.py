@@ -54,7 +54,7 @@ INDEX_REGISTRY: dict[str, IndexInfo] = {
 
 # Category mapping for frontend grouping
 INDEX_CATEGORIES: dict[str, list[str]] = {
-    "indices": ["^BVSP", "^GSPC", "IFIX.SA"],
+    "markets": ["^BVSP", "^GSPC", "IFIX.SA"],
     "currencies": ["USDBRL=X", "EURBRL=X"],
     "cryptocurrencies": ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD"],
 }
