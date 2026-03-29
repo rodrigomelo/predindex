@@ -26,8 +26,8 @@ INDEX_REGISTRY: dict[str, IndexInfo] = {
     "^GSPC": IndexInfo(
         symbol="^GSPC", name="S&P 500", currency="USD", exchange="NYSE"
     ),
-    "^IFIX": IndexInfo(
-        symbol="^IFIX", name="IFIX", currency="BRL", exchange="B3"
+    "IFIX.SA": IndexInfo(
+        symbol="IFIX.SA", name="IFIX", currency="BRL", exchange="B3"
     ),
     "USDBRL=X": IndexInfo(
         symbol="USDBRL=X", name="USD/BRL", currency="BRL", exchange="Forex"

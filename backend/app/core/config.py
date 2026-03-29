@@ -20,15 +20,16 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5004"]
 
-    # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./data/predindex.db")
+    # Database — use absolute path for SQLite to avoid working directory issues
+    _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(_BASE_DIR, 'data', 'predindex.db')}")
 
     # External APIs
     YAHOO_FINANCE_ENABLED: bool = True
     ALPHA_VANTAGE_API_KEY: Optional[str] = os.getenv("ALPHA_VANTAGE_API_KEY")
 
     # Default indices to track
-    DEFAULT_INDICES: List[str] = ["^BVSP", "^IFIX", "^GSPC", "USDBRL=X"]
+    DEFAULT_INDICES: List[str] = ["^BVSP", "IFIX.SA", "^GSPC", "USDBRL=X"]
 
     # Cache TTL in seconds
     CACHE_TTL: int = 300  # 5 minutes
