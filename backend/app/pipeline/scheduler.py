@@ -1,5 +1,6 @@
 """Pipeline scheduler — APScheduler-based data fetch automation."""
 
+import asyncio
 import logging
 from datetime import datetime
 
@@ -11,8 +12,6 @@ from app.models.db import get_session
 from app.pipeline.fetcher import DataFetcher
 
 logger = logging.getLogger(__name__)
-
-# ── Scheduler ───────────────────────────────────────────────────
 
 
 class PipelineScheduler:
@@ -28,7 +27,7 @@ class PipelineScheduler:
         return self._fetcher
 
     def _fetch_job(self):
-        """Periodic job: fetch all default indices."""
+        """Periodic job: fetch all default indices from Yahoo Finance."""
         fetcher = self._get_fetcher()
         logger.info(f"[{datetime.utcnow()}] Pipeline job starting...")
         try:
@@ -41,9 +40,25 @@ class PipelineScheduler:
         except Exception as e:
             logger.error(f"Pipeline job failed: {e}")
 
+    def _ifix_scrape_job(self):
+        """Periodic job: scrape IFIX from StatusInvest."""
+        logger.info(f"[{datetime.utcnow()}] IFIX scrape job starting...")
+        try:
+            from app.pipeline.scrapers.ifix_statusinvest import refresh_ifix_data
+
+            # Run async scraper in sync context
+            loop = asyncio.new_event_loop()
+            try:
+                count = loop.run_until_complete(refresh_ifix_data(period="6 meses"))
+                logger.info(f"  IFIX scrape: {count} records stored")
+            finally:
+                loop.close()
+        except Exception as e:
+            logger.error(f"IFIX scrape job failed: {e}")
+
     def start(self):
         """Start the scheduler with configured jobs."""
-        # Primary fetch: every 15 minutes
+        # Primary fetch: every 15 minutes (Yahoo Finance)
         self._scheduler.add_job(
             self._fetch_job,
             trigger=IntervalTrigger(minutes=15),
@@ -52,12 +67,12 @@ class PipelineScheduler:
             replace_existing=True,
         )
 
-        # EOD fetch: once per day at market close (19:00 BRT = 22:00 UTC)
+        # IFIX scrape: once per day (StatusInvest)
         self._scheduler.add_job(
-            self._fetch_job,
+            self._ifix_scrape_job,
             trigger=IntervalTrigger(hours=24),
-            id="fetch_eod_indices",
-            name="Fetch EOD data",
+            id="scrape_ifix",
+            name="Scrape IFIX from StatusInvest",
             replace_existing=True,
         )
 
@@ -73,6 +88,7 @@ class PipelineScheduler:
     def trigger_now(self):
         """Manually trigger an immediate fetch."""
         self._fetch_job()
+        self._ifix_scrape_job()
 
 
 # Singleton instance

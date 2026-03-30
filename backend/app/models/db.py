@@ -33,6 +33,7 @@ def get_engine():
 
 
 def get_session():
+    """Create a new database session. Caller is responsible for closing it."""
     global _SessionLocal
     if _SessionLocal is None:
         _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())

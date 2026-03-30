@@ -29,7 +29,11 @@ class Settings(BaseSettings):
     ALPHA_VANTAGE_API_KEY: Optional[str] = os.getenv("ALPHA_VANTAGE_API_KEY")
 
     # Default indices to track
-    DEFAULT_INDICES: List[str] = ["^BVSP", "IFIX.SA", "^GSPC", "USDBRL=X", "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD"]
+    DEFAULT_INDICES: List[str] = [
+        "^BVSP", "^GSPC", "IFIX.SA",
+        "USDBRL=X", "EURBRL=X",
+        "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD",
+    ]
 
     # Cache TTL in seconds
     CACHE_TTL: int = 300  # 5 minutes

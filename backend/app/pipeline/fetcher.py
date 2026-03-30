@@ -94,6 +94,11 @@ class DataFetcher:
                 fetched_at=datetime.utcnow(),
             )
 
+            # Upsert: delete old quotes for this symbol before inserting
+            self.db.query(IndexQuoteModel).filter(
+                IndexQuoteModel.symbol == symbol
+            ).delete()
+
             self.db.add(quote)
             self.db.commit()
             logger.info(f"Quote fetched: {symbol} @ {quote.price}")
