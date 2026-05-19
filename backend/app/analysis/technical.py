@@ -1,7 +1,7 @@
 """Technical analysis engine — computes RSI, MACD, Bollinger Bands, SMA, EMA."""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import pandas as pd
@@ -200,7 +200,7 @@ class TechnicalAnalyzer:
             # Return a "no data" result
             return AnalysisResult(
                 symbol=symbol,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 trend="unknown",
                 recommendation="hold",
                 confidence=0.0,
@@ -222,7 +222,7 @@ class TechnicalAnalyzer:
 
         return AnalysisResult(
             symbol=symbol,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             trend=trend,
             recommendation=recommendation,
             confidence=confidence,

@@ -18,11 +18,17 @@ class Settings(BaseSettings):
     PORT: int = 5004
 
     # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5004"]
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:5004",
+        "https://predindex.rodrigolanna.com.br",
+    ]
 
-    # Database — use absolute path for SQLite to avoid working directory issues
-    _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(_BASE_DIR, 'data', 'predindex.db')}")
+    # Database — PostgreSQL by default; SQLite still supported via DATABASE_URL
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://predindex:predindex@localhost:5432/predindex")
+
+    # App URL (production awareness)
+    APP_URL: str = os.getenv("APP_URL", f"http://localhost:{os.getenv('PORT', '5004')}")
 
     # External APIs
     YAHOO_FINANCE_ENABLED: bool = True

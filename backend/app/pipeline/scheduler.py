@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -29,7 +29,7 @@ class PipelineScheduler:
     def _fetch_job(self):
         """Periodic job: fetch all default indices from Yahoo Finance."""
         fetcher = self._get_fetcher()
-        logger.info(f"[{datetime.utcnow()}] Pipeline job starting...")
+        logger.info(f"[{datetime.now(timezone.utc)}] Pipeline job starting...")
         try:
             results = fetcher.fetch_all_default()
             for symbol, data in results.items():
@@ -42,7 +42,7 @@ class PipelineScheduler:
 
     def _ifix_scrape_job(self):
         """Periodic job: scrape IFIX from StatusInvest."""
-        logger.info(f"[{datetime.utcnow()}] IFIX scrape job starting...")
+        logger.info(f"[{datetime.now(timezone.utc)}] IFIX scrape job starting...")
         try:
             from app.pipeline.scrapers.ifix_statusinvest import refresh_ifix_data
 

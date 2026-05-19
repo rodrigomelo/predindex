@@ -13,7 +13,7 @@ Requires: playwright (pip install playwright && python -m playwright install chr
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from playwright.async_api import async_playwright
@@ -135,7 +135,7 @@ def store_ifix_history(records: list[dict]) -> int:
             close=r["close"],
             volume=None,
             interval="1d",
-            fetched_at=datetime.utcnow(),
+            fetched_at=datetime.now(timezone.utc),
         )
         session.add(rec)
 
@@ -161,7 +161,7 @@ def store_ifix_history(records: list[dict]) -> int:
             low=round(price, 2),
             open_price=round(price, 2),
             previous_close=round(prev_close, 2),
-            fetched_at=datetime.utcnow(),
+            fetched_at=datetime.now(timezone.utc),
         )
     )
 

@@ -68,7 +68,7 @@ def _read_history_from_db(symbol: str, period: str, interval: str) -> IndexHisto
         }
         days = period_days.get(period, 30)
         from datetime import timedelta as td
-        cutoff = datetime.utcnow() - td(days=days)
+        cutoff = datetime.now(timezone.utc) - td(days=days)
 
         query = session.query(IndexHistoryModel).filter(
             IndexHistoryModel.symbol == symbol

@@ -1,6 +1,6 @@
 """SQLAlchemy database models for PredIndex time-series data."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import (
@@ -9,10 +9,10 @@ from sqlalchemy import (
     Float,
     Integer,
     String,
+    UniqueConstraint,
     create_engine,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.core.config import settings
 
@@ -22,12 +22,22 @@ _engine = None
 _SessionLocal = None
 
 
+class Base(DeclarativeBase):
+    pass
+
+
 def get_engine():
     global _engine
     if _engine is None:
+        connect_args = {}
+        if "sqlite" in settings.DATABASE_URL:
+            connect_args = {"check_same_thread": False}
         _engine = create_engine(
             settings.DATABASE_URL,
-            connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {},
+            connect_args=connect_args,
+            pool_pre_ping=True,
+            pool_size=5,
+            max_overflow=10,
         )
     return _engine
 
@@ -38,9 +48,6 @@ def get_session():
     if _SessionLocal is None:
         _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
     return _SessionLocal()
-
-
-Base = declarative_base()  # noqa: deprecated alias, will migrate to mapped_column later
 
 
 # ── Models ──────────────────────────────────────────────────────
@@ -63,7 +70,7 @@ class IndexQuoteModel(Base):
     previous_close = Column(Float, nullable=True)
     currency = Column(String(10), default="USD")
     exchange = Column(String(50), nullable=True)
-    fetched_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    fetched_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     def __repr__(self):
         return f"<IndexQuoteModel(symbol={self.symbol}, price={self.price}, fetched_at={self.fetched_at})>"
@@ -83,11 +90,10 @@ class IndexHistoryModel(Base):
     close = Column(Float, nullable=False)
     volume = Column(Integer, nullable=True)
     interval = Column(String(10), default="1d", nullable=False)
-    fetched_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    fetched_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     __table_args__ = (
-        # Composite unique constraint: symbol + date + interval
-        # (use unique() method for SQLite compatibility)
+        UniqueConstraint("symbol", "date", "interval", name="uq_symbol_date_interval"),
     )
 
     def __repr__(self):
@@ -104,7 +110,7 @@ class TechnicalIndicatorModel(Base):
     indicator_name = Column(String(50), nullable=False)
     value = Column(Float, nullable=False)
     period = Column(String(20), nullable=True)
-    computed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    computed_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     def __repr__(self):
         return f"<TechnicalIndicatorModel(symbol={self.symbol}, name={self.indicator_name}, value={self.value})>"

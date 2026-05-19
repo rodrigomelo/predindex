@@ -11,6 +11,7 @@ yfinance==0.2.55
 
 # Database
 sqlalchemy==2.0.39
+psycopg2-binary==2.9.10
 
 # Data analysis
 pandas==2.2.3

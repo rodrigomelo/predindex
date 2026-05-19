@@ -1,6 +1,24 @@
 version: "3.9"
 
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: predindex-db
+    environment:
+      POSTGRES_DB: predindex
+      POSTGRES_USER: predindex
+      POSTGRES_PASSWORD: predindex
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U predindex"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -8,13 +26,17 @@ services:
     container_name: predindex-backend
     ports:
       - "5004:5004"
-    volumes:
-      - ./data:/app/data
-    env_file:
-      - ./backend/.env.example
+    environment:
+      DATABASE_URL: postgresql://predindex:predindex@db:5432/predindex
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5004/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+
+volumes:
+  pgdata:

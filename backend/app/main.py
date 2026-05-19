@@ -34,10 +34,11 @@ async def lifespan(app: FastAPI):
 
     logger.info(f"🔨 {settings.APP_NAME} v{settings.APP_VERSION} starting...")
 
-    # Ensure data directory exists
-    data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
-    os.makedirs(data_dir, exist_ok=True)
-    logger.info(f"   Data directory: {data_dir}")
+    # Ensure data directory exists (only for SQLite)
+    if "sqlite" in settings.DATABASE_URL:
+        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
+        os.makedirs(data_dir, exist_ok=True)
+        logger.info(f"   Data directory: {data_dir}")
 
     # Initialize database
     try:

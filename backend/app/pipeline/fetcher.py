@@ -4,7 +4,7 @@ Fetches quotes and historical data for tracked indices.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import yfinance as yf
@@ -91,7 +91,7 @@ class DataFetcher:
                 previous_close=info.previous_close or None,
                 currency=getattr(info, "currency", "USD"),
                 exchange=getattr(info, "exchange", None),
-                fetched_at=datetime.utcnow(),
+                fetched_at=datetime.now(timezone.utc),
             )
 
             # Upsert: delete old quotes for this symbol before inserting
@@ -135,7 +135,7 @@ class DataFetcher:
                     close=float(row["Close"]),
                     volume=int(row["Volume"]) if row["Volume"] == row["Volume"] else 0,
                     interval=interval,
-                    fetched_at=datetime.utcnow(),
+                    fetched_at=datetime.now(timezone.utc),
                 )
                 models.append(model)
 
