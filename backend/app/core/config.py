@@ -44,7 +44,7 @@ class Settings(BaseSettings):
 
     # Cache TTL in seconds
     CACHE_TTL: int = 300  # 5 minutes
-    FETCH_DELAY_SECONDS: float = float(os.getenv("FETCH_DELAY_SECONDS", "1.5"))
+    FETCH_DELAY_SECONDS: float = float(os.getenv("FETCH_DELAY_SECONDS", "5"))
 
     model_config = {
         "env_file": ".env",
