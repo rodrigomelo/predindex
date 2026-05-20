@@ -6,49 +6,28 @@ from typing import Optional
 
 import pandas as pd
 
-from app.models.db import get_session, IndexHistoryModel
 from app.models.schemas import AnalysisResult
 
 logger = logging.getLogger(__name__)
-
-# ── Indicator Config ────────────────────────────────────────────
-
-
-INDICATOR_CONFIG = {
-    "SMA_20": {"period": 20, "indicator": "sma"},
-    "SMA_50": {"period": 50, "indicator": "sma"},
-    "EMA_12": {"period": 12, "indicator": "ema"},
-    "EMA_26": {"period": 26, "indicator": "ema"},
-    "RSI_14": {"period": 14, "indicator": "rsi"},
-    "MACD_12_26_9": {"indicator": "macd"},
-    "BB_20_2": {"period": 20, "indicator": "bb"},
-}
-
-
 # ── TechnicalAnalyzer ────────────────────────────────────────────
 
 
 class TechnicalAnalyzer:
     """Computes technical indicators and generates trading signals."""
 
-    def __init__(self):
-        self._db = get_session()
-
     def _get_history_df(self, symbol: str, period: str = "3mo") -> pd.DataFrame:
         """Load history from DB as DataFrame."""
-        points = (
-            self._db.query(IndexHistoryModel)
-            .filter(IndexHistoryModel.symbol == symbol)
-            .order_by(IndexHistoryModel.date.desc())
-            .limit(200)
-            .all()
-        )
-
-        if not points:
-            return pd.DataFrame()
-
-        df = pd.DataFrame(
-            [
+        from app.models.db import get_session_ctx, IndexHistoryModel
+        with get_session_ctx() as session:
+            points = (
+                session.query(IndexHistoryModel)
+                .filter(IndexHistoryModel.symbol == symbol)
+                .order_by(IndexHistoryModel.date.desc())
+                .limit(200)
+                .all()
+            )
+            # Extract data while session is open
+            rows = [
                 {
                     "date": p.date,
                     "open": p.open_price,
@@ -59,9 +38,14 @@ class TechnicalAnalyzer:
                 }
                 for p in points
             ]
-        )
+
+        if not rows:
+            return pd.DataFrame()
+
+        df = pd.DataFrame(rows)
         df = df.sort_values("date")
         return df
+
 
     def _compute_indicators(self, df: pd.DataFrame) -> dict:
         """Compute technical indicators on OHLCV data."""
@@ -89,8 +73,8 @@ class TechnicalAnalyzer:
             delta = close.diff()
             gain = delta.where(delta > 0, 0.0)
             loss = (-delta).where(delta < 0, 0.0)
-            avg_gain = gain.rolling(window=14).mean()
-            avg_loss = loss.rolling(window=14).mean()
+            avg_gain = gain.ewm(alpha=1/14, min_periods=14, adjust=False).mean()
+            avg_loss = loss.ewm(alpha=1/14, min_periods=14, adjust=False).mean()
             rs = avg_gain / avg_loss
             rsi = 100 - (100 / (1 + rs))
             indicators["rsi_14"] = round(float(rsi.iloc[-1]), 4)

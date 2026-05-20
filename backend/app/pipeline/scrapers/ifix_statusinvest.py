@@ -112,60 +112,61 @@ async def fetch_ifix_daily(period: str = "6 meses") -> list[dict]:
 def store_ifix_history(records: list[dict]) -> int:
     """Store scraped IFIX records into the database.
 
+    Note: StatusInvest only provides closing values, so OHLC are all set to close.
+    Technical indicators relying on high/low spread (ATR, Bollinger volatility)
+    will not be meaningful for IFIX data.
+
     Returns the number of records stored.
     """
-    from app.models.db import get_session, IndexHistoryModel
+    from app.models.db import get_session_ctx, IndexHistoryModel, IndexQuoteModel
 
     if not records:
         return 0
 
-    session = get_session()
+    with get_session_ctx() as session:
+        # Clear existing IFIX history
+        session.query(IndexHistoryModel).filter(IndexHistoryModel.symbol == "IFIX.SA").delete()
 
-    # Clear existing IFIX history
-    session.query(IndexHistoryModel).filter(IndexHistoryModel.symbol == "IFIX.SA").delete()
+        for r in records:
+            dt = datetime.strptime(r["date"], "%Y-%m-%d")
+            rec = IndexHistoryModel(
+                symbol="IFIX.SA",
+                date=dt,
+                open_price=r["close"],
+                high=r["close"],
+                low=r["close"],
+                close=r["close"],
+                volume=None,
+                interval="1d",
+                fetched_at=datetime.now(timezone.utc),
+            )
+            session.add(rec)
 
-    for r in records:
-        dt = datetime.strptime(r["date"], "%Y-%m-%d")
-        rec = IndexHistoryModel(
-            symbol="IFIX.SA",
-            date=dt,
-            open_price=r["close"],
-            high=r["close"],
-            low=r["close"],
-            close=r["close"],
-            volume=None,
-            interval="1d",
-            fetched_at=datetime.now(timezone.utc),
+        # Update quote
+        latest = records[-1]
+        prev = records[-2] if len(records) > 1 else records[-1]
+        price = latest["close"]
+        prev_close = prev["close"]
+        change = price - prev_close
+        change_pct = (change / prev_close * 100) if prev_close else 0
+
+        session.query(IndexQuoteModel).filter(IndexQuoteModel.symbol == "IFIX.SA").delete()
+        session.add(
+            IndexQuoteModel(
+                symbol="IFIX.SA",
+                price=round(price, 2),
+                change=round(change, 2),
+                change_percent=round(change_pct, 2),
+                volume=None,
+                high=round(price, 2),
+                low=round(price, 2),
+                open_price=round(price, 2),
+                previous_close=round(prev_close, 2),
+                fetched_at=datetime.now(timezone.utc),
+            )
         )
-        session.add(rec)
 
-    # Update quote
-    latest = records[-1]
-    prev = records[-2] if len(records) > 1 else records[-1]
-    price = latest["close"]
-    prev_close = prev["close"]
-    change = price - prev_close
-    change_pct = (change / prev_close * 100) if prev_close else 0
-
-    from app.models.db import IndexQuoteModel
-
-    session.query(IndexQuoteModel).filter(IndexQuoteModel.symbol == "IFIX.SA").delete()
-    session.add(
-        IndexQuoteModel(
-            symbol="IFIX.SA",
-            price=round(price, 2),
-            change=round(change, 2),
-            change_percent=round(change_pct, 2),
-            volume=None,
-            high=round(price, 2),
-            low=round(price, 2),
-            open_price=round(price, 2),
-            previous_close=round(prev_close, 2),
-            fetched_at=datetime.now(timezone.utc),
-        )
-    )
-
-    session.commit()
+        session.commit()
     return len(records)
 
 

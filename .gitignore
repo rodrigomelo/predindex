@@ -3,18 +3,10 @@ __pycache__/
 *.egg-info/
 .venv/
 .env
-node_modules/
-*.db
 .ruff_cache/
 .pytest_cache/
-dist/
-build/
-# Dependencies
 node_modules/
-__pycache__/
-*.pyc
-.venv/
-.ruff_cache/
-.pytest_cache/
 *.db
 data/
+dist/
+build/

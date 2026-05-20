@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     # App
     APP_NAME: str = "PredIndex"
     APP_VERSION: str = "0.1.0"
-    DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 
     # Server
     HOST: str = "0.0.0.0"
@@ -33,16 +33,18 @@ class Settings(BaseSettings):
     # External APIs
     YAHOO_FINANCE_ENABLED: bool = True
     ALPHA_VANTAGE_API_KEY: Optional[str] = os.getenv("ALPHA_VANTAGE_API_KEY")
+    ADMIN_API_KEY: Optional[str] = os.getenv("ADMIN_API_KEY")
 
     # Default indices to track
     DEFAULT_INDICES: List[str] = [
-        "^BVSP", "^GSPC", "IFIX.SA",
+        "^BVSP", "^GSPC",
         "USDBRL=X", "EURBRL=X",
         "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD",
     ]
 
     # Cache TTL in seconds
     CACHE_TTL: int = 300  # 5 minutes
+    FETCH_DELAY_SECONDS: float = float(os.getenv("FETCH_DELAY_SECONDS", "1.5"))
 
     model_config = {
         "env_file": ".env",

@@ -7,7 +7,7 @@ External API calls only happen when force_refresh=True (manual trigger).
 import asyncio
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from app.models.schemas import IndexQuote, IndexHistory, IndexHistoryPoint
@@ -30,69 +30,62 @@ async def _rate_limit_guard():
 
 
 def _read_quote_from_db(symbol: str) -> Optional[IndexQuote]:
-    """Read latest quote from SQLite database."""
+    """Read latest quote from database."""
     try:
-        from app.models.db import get_session, IndexQuoteModel
-        session = get_session()
-        latest = session.query(IndexQuoteModel).filter(
-            IndexQuoteModel.symbol == symbol
-        ).order_by(IndexQuoteModel.fetched_at.desc()).first()
-        if latest and latest.price and latest.price > 0:
-            return IndexQuote(
-                symbol=symbol,
-                price=latest.price,
-                change=latest.change,
-                change_percent=latest.change_percent,
-                volume=latest.volume,
-                high=latest.high,
-                low=latest.low,
-                open=latest.open_price,
-                previous_close=latest.previous_close,
-                timestamp=latest.fetched_at,
-            )
+        from app.models.db import get_session_ctx, IndexQuoteModel
+        with get_session_ctx() as session:
+            latest = session.query(IndexQuoteModel).filter(
+                IndexQuoteModel.symbol == symbol
+            ).order_by(IndexQuoteModel.fetched_at.desc()).first()
+            if latest and latest.price and latest.price > 0:
+                return IndexQuote(
+                    symbol=symbol,
+                    price=latest.price,
+                    change=latest.change,
+                    change_percent=latest.change_percent,
+                    volume=latest.volume,
+                    high=latest.high,
+                    low=latest.low,
+                    open=latest.open_price,
+                    previous_close=latest.previous_close,
+                    timestamp=latest.fetched_at,
+                )
     except Exception as e:
         logger.debug(f"DB read failed for {symbol}: {e}")
     return None
 
 
 def _read_history_from_db(symbol: str, period: str, interval: str) -> IndexHistory:
-    """Read historical data from SQLite database, filtered by period."""
+    """Read historical data from database, filtered by period."""
     try:
-        from datetime import timedelta
-        from app.models.db import get_session, IndexHistoryModel
-        session = get_session()
+        from app.models.db import get_session_ctx, IndexHistoryModel
+        with get_session_ctx() as session:
+            period_days = {
+                '5d': 5, '1mo': 30, '3mo': 90, '6mo': 180, '1y': 365, 'max': 9999,
+            }
+            days = period_days.get(period, 30)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
-        # Map period string to days
-        period_days = {
-            '5d': 5, '1mo': 30, '3mo': 90, '6mo': 180, '1y': 365, 'max': 9999,
-        }
-        days = period_days.get(period, 30)
-        from datetime import timedelta as td
-        cutoff = datetime.now(timezone.utc) - td(days=days)
+            query = session.query(IndexHistoryModel).filter(
+                IndexHistoryModel.symbol == symbol
+            )
+            if days < 9999:
+                query = query.filter(IndexHistoryModel.date >= cutoff)
+            points = query.order_by(IndexHistoryModel.date.asc()).limit(500).all()
 
-        query = session.query(IndexHistoryModel).filter(
-            IndexHistoryModel.symbol == symbol
-        )
-
-        # Filter by date cutoff
-        if days < 9999:
-            query = query.filter(IndexHistoryModel.date >= cutoff)
-
-        points = query.order_by(IndexHistoryModel.date.asc()).limit(500).all()
-
-        if points:
-            data = [
-                IndexHistoryPoint(
-                    date=p.date.replace(tzinfo=timezone.utc) if p.date.tzinfo is None else p.date,
-                    open=p.open_price,
-                    high=p.high,
-                    low=p.low,
-                    close=p.close,
-                    volume=p.volume,
-                )
-                for p in points
-            ]
-            return IndexHistory(symbol=symbol, period=period, interval=interval, data=data)
+            if points:
+                data = [
+                    IndexHistoryPoint(
+                        date=p.date.replace(tzinfo=timezone.utc) if p.date.tzinfo is None else p.date,
+                        open=p.open_price,
+                        high=p.high,
+                        low=p.low,
+                        close=p.close,
+                        volume=p.volume,
+                    )
+                    for p in points
+                ]
+                return IndexHistory(symbol=symbol, period=period, interval=interval, data=data)
     except Exception as e:
         logger.debug(f"History DB read failed for {symbol}: {e}")
     return IndexHistory(symbol=symbol, period=period, interval=interval, data=[])
@@ -101,7 +94,7 @@ def _read_history_from_db(symbol: str, period: str, interval: str) -> IndexHisto
 class MarketDataService:
     """Service for reading market data from DB with optional live refresh.
 
-    By default, all data is served from the local SQLite database.
+    By default, all data is served from the local database.
     Use force_refresh=True to trigger a live fetch from Yahoo Finance
     (this should only be called by the pipeline or manual refresh).
     """
@@ -111,9 +104,9 @@ class MarketDataService:
 
     def invalidate_cache(self, symbol: str) -> None:
         """Clear cached data for a given symbol."""
-        keys_to_remove = [k for k in self._cache._store if symbol in k]
+        keys_to_remove = [k for k in list(self._cache._store.keys()) if symbol in k]
         for key in keys_to_remove:
-            del self._cache._store[key]
+            self._cache._store.pop(key, None)
 
     async def get_quote(self, symbol: str, force_refresh: bool = False) -> IndexQuote:
         """Get latest quote — reads from DB by default, optionally refreshes from Yahoo."""

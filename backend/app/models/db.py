@@ -30,14 +30,19 @@ def get_engine():
     global _engine
     if _engine is None:
         connect_args = {}
+        engine_kwargs = {}
         if "sqlite" in settings.DATABASE_URL:
             connect_args = {"check_same_thread": False}
+        else:
+            engine_kwargs = {
+                "pool_pre_ping": True,
+                "pool_size": 5,
+                "max_overflow": 10,
+            }
         _engine = create_engine(
             settings.DATABASE_URL,
             connect_args=connect_args,
-            pool_pre_ping=True,
-            pool_size=5,
-            max_overflow=10,
+            **engine_kwargs,
         )
     return _engine
 
@@ -48,6 +53,19 @@ def get_session():
     if _SessionLocal is None:
         _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
     return _SessionLocal()
+
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def get_session_ctx():
+    """Context manager for database sessions with automatic cleanup."""
+    session = get_session()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 # ── Models ──────────────────────────────────────────────────────

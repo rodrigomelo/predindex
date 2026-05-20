@@ -16,6 +16,8 @@ from app.api import routes
 from app.models.db import init_db
 from app.pipeline.scheduler import get_pipeline_scheduler
 
+from app.models.schemas import HealthResponse
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -83,8 +85,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
 
 # Routes
@@ -94,8 +96,6 @@ app.include_router(routes.router)
 @app.get("/health", tags=["health"])
 async def health_check():
     """Health check endpoint."""
-    from app.models.schemas import HealthResponse
-
     return HealthResponse(
         status="ok",
         version=settings.APP_VERSION,

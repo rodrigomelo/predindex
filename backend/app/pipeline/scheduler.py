@@ -8,7 +8,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 from app.core.config import settings
-from app.models.db import get_session
 from app.pipeline.fetcher import DataFetcher
 
 logger = logging.getLogger(__name__)
@@ -19,18 +18,12 @@ class PipelineScheduler:
 
     def __init__(self):
         self._scheduler = BackgroundScheduler()
-        self._fetcher: DataFetcher | None = None
-
-    def _get_fetcher(self) -> DataFetcher:
-        if self._fetcher is None:
-            self._fetcher = DataFetcher(get_session())
-        return self._fetcher
 
     def _fetch_job(self):
         """Periodic job: fetch all default indices from Yahoo Finance."""
-        fetcher = self._get_fetcher()
         logger.info(f"[{datetime.now(timezone.utc)}] Pipeline job starting...")
         try:
+            fetcher = DataFetcher()
             results = fetcher.fetch_all_default()
             for symbol, data in results.items():
                 logger.info(
@@ -46,13 +39,8 @@ class PipelineScheduler:
         try:
             from app.pipeline.scrapers.ifix_statusinvest import refresh_ifix_data
 
-            # Run async scraper in sync context
-            loop = asyncio.new_event_loop()
-            try:
-                count = loop.run_until_complete(refresh_ifix_data(period="6 meses"))
-                logger.info(f"  IFIX scrape: {count} records stored")
-            finally:
-                loop.close()
+            count = asyncio.run(refresh_ifix_data(period="6 meses"))
+            logger.info(f"  IFIX scrape: {count} records stored")
         except Exception as e:
             logger.error(f"IFIX scrape job failed: {e}")
 
@@ -86,7 +74,7 @@ class PipelineScheduler:
             logger.info("Pipeline scheduler stopped.")
 
     def trigger_now(self):
-        """Manually trigger an immediate fetch."""
+        """Manually trigger an immediate fetch (blocking — call from executor)."""
         self._fetch_job()
         self._ifix_scrape_job()
 

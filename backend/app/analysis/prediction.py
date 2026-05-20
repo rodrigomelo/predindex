@@ -1,10 +1,8 @@
-"""Predictive analysis module — to be implemented.
+"""Predictive analysis module — placeholder for future ML models.
 
-This module will contain:
+Planned features:
 - ML models for trend prediction
 - Sentiment analysis from news
 - Pattern recognition
 - Forecasting models
 """
-
-# TODO: Implement after research phase

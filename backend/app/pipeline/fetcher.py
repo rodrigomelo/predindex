@@ -4,17 +4,17 @@ Fetches quotes and historical data for tracked indices.
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
+import time
+from datetime import datetime, timezone
 from typing import Optional
 
 import yfinance as yf
-from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.db import (
     IndexHistoryModel,
     IndexQuoteModel,
-    get_session,
+    get_session_ctx,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,39 +35,11 @@ TICKER_MAP: dict[str, str] = {
 }
 
 
-INTERVAL_MAP: dict[str, str] = {
-    "1m": "1m",
-    "5m": "5m",
-    "15m": "15m",
-    "1h": "1h",
-    "1d": "1d",
-}
-
-PERIOD_MAP: dict[str, str] = {
-    "1d": "1d",
-    "5d": "5d",
-    "1mo": "1mo",
-    "3mo": "3mo",
-    "6mo": "6mo",
-    "1y": "1y",
-    "5y": "5y",
-}
-
-
 # ── DataFetcher ──────────────────────────────────────────────────
 
 
 class DataFetcher:
     """Fetches market data from Yahoo Finance."""
-
-    def __init__(self, db_session: Optional[Session] = None):
-        self._db_session = db_session
-
-    @property
-    def db(self) -> Session:
-        if self._db_session is None:
-            self._db_session = get_session()
-        return self._db_session
 
     def fetch_quote(self, symbol: str) -> Optional[IndexQuoteModel]:
         """Fetch and store the latest quote for a symbol."""
@@ -94,27 +66,20 @@ class DataFetcher:
                 fetched_at=datetime.now(timezone.utc),
             )
 
-            # Upsert: delete old quotes for this symbol before inserting
-            self.db.query(IndexQuoteModel).filter(
-                IndexQuoteModel.symbol == symbol
-            ).delete()
-
-            self.db.add(quote)
-            self.db.commit()
+            with get_session_ctx() as session:
+                session.query(IndexQuoteModel).filter(
+                    IndexQuoteModel.symbol == symbol
+                ).delete()
+                session.add(quote)
+                session.commit()
             logger.info(f"Quote fetched: {symbol} @ {quote.price}")
             return quote
 
         except Exception as e:
             logger.error(f"Failed to fetch quote for {symbol}: {e}")
-            self.db.rollback()
             return None
 
-    def fetch_history(
-        self,
-        symbol: str,
-        period: str = "1mo",
-        interval: str = "1d",
-    ) -> list[IndexHistoryModel]:
+    def fetch_history(self, symbol, period="1mo", interval="1d") -> list[IndexHistoryModel]:
         """Fetch and store historical OHLCV data for a symbol."""
         try:
             ticker = yf.Ticker(symbol)
@@ -139,20 +104,18 @@ class DataFetcher:
                 )
                 models.append(model)
 
-            # Upsert: replace history for this symbol + interval
-            self.db.query(IndexHistoryModel).filter(
-                IndexHistoryModel.symbol == symbol,
-                IndexHistoryModel.interval == interval,
-            ).delete()
-
-            self.db.add_all(models)
-            self.db.commit()
+            with get_session_ctx() as session:
+                session.query(IndexHistoryModel).filter(
+                    IndexHistoryModel.symbol == symbol,
+                    IndexHistoryModel.interval == interval,
+                ).delete()
+                session.add_all(models)
+                session.commit()
             logger.info(f"History fetched: {symbol} ({len(models)} points, {interval})")
             return models
 
         except Exception as e:
             logger.error(f"Failed to fetch history for {symbol}: {e}")
-            self.db.rollback()
             return []
 
     def fetch_all_default(self) -> dict[str, list]:
@@ -160,12 +123,8 @@ class DataFetcher:
         results = {}
         for symbol in settings.DEFAULT_INDICES:
             quote = self.fetch_quote(symbol)
+            time.sleep(settings.FETCH_DELAY_SECONDS)
             history = self.fetch_history(symbol, period="1mo", interval="1d")
+            time.sleep(settings.FETCH_DELAY_SECONDS)
             results[symbol] = {"quote": quote, "history": len(history)}
         return results
-
-    def close(self):
-        """Close the database session."""
-        if self._db_session:
-            self._db_session.close()
-            self._db_session = None
